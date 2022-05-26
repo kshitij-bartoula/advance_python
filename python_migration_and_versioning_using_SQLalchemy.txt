@@ -1,0 +1,133 @@
+create virtual environment
+cmd>virtualenv env (if virtuaenv package not available then pip install virtualenv)
+activate env
+cmd>env\Scripts\activate
+
+--now install packages required for migration and versioning
+(env) cmd>pip install psycopg2-binary (connector to connect postgres db and python)
+(env) cmd>pip install alembic  (this will download sqlalchemy and alembic)
+
+now we need to initialize alembic
+(env) cmd>alembic init alembic
+
+changes required in files:
+alembic.ini:
+   change:  
+   sqlalchemy.url = Drivers://user:pass@localhost/dbname
+   To(example)user,pass differs:
+   sqlalchemy.url = postgresql+psycopg2://postgres:12345@localhost/postgres
+
+env.py:
+   import models:
+   eg:
+   from models.address import Address
+   from models.base import Base
+
+**we need to import every models and class we prepared in env.py
+** Inside address model we have created python class Address which will turn into table
+   and base.py is just the extension to call declarative_base() function to create object to map in
+   db.                       
+ 
+*create new folder models inside main folder and create all scripts files there
+
+                             **address.py
+
+from sqlalchemy import Column, Integer, String
+
+from models.base import Base
+
+convention ={
+    "pk": "pk_%(table_name)s"
+}
+
+class Address(Base):
+    __tablename__='address'
+
+    id= Column(Integer, primary_key=True)
+    permanent_addr = Column(String(100))
+    
+
+class Family(Base):
+    __tablename__='family'
+
+    id= Column(Integer, primary_key=True)
+    permanent_addr = Column(String(100))
+    temporary_addr = Column(String(100))
+    
+                                **base.py
+
+from sqlalchemy.ext.declarative import declarative_base
+Base=declarative_base() 
+
+# now run following command to create first version 
+
+(env) cmd>alembic revision --autogenerate -m "message..first version of address with
+ 2 col"
+
+**to check if its working, new folder version is been created inside alembic after
+running above cmd. The version file started with SHA will will track it. The automatic query
+is generated inside it having function upgrade() and downgrade().
+
+upgrade() contains creating table from models (or latest revision) in db whereas 
+downgrade() contains removing latest revision
+
+# if we want to create table then run cmd
+(env) cmd> alembic upgrade head
+
+**head will execute the latest revision 
+** now after runnig above cmd our models are imported as table in database which 
+   we can confirm by \d in psql window. Here in address.py we have just assign 2 col
+   id and permanent_address 
+   and reflects in db by psql window \d address. Now, if we want new col 
+   temporary_address
+   in address than we add it in address.py but adding in script doesnot add column in 
+   database. For this, we need to run revision cmd again
+(env) cmd>alembic revision --autogenerate -m "second version commit for address"
+
+After running it, it will detect the changes to bring those changes in database
+we need to run
+(env) cmd> alembic upgrade head
+which will ececute the latest revision
+
+Added col cam be verified in psql window by \d address or in gui tools like pgadmin
+or dbeaver
+
+After this execution version folder in alembic contains another file starting with 
+another SHA value.
+
+to rollback the changes: in version folder we got file for every changes that we had
+made
+Now to rollback to previous stage we need to run cms
+(env) cmd>alembic downgrade -1
+
+** -1 rolls back to one step from current stage if we want to rollback multiple stage
+then specify number of steps to roll back. If i want to rollback to 3rd previous
+stage from current stage then
+
+(env) cmd>alembic downgrade -3
+
+In this way, we can implement ORM (sqlalchemy) and alembic for migration and version
+control.
+
+After completion we can deactivate virtualenv by
+(env) cmd>deactivate
+cmd>
+
+The main advantage of using ORM is:
+
+suppose, we create a project based on some particular dbms either on oracle,
+postgres,mysql,mssql etc. The size of the project increases with passage of time and the technology
+used is outdated and to to be shifted in another dbms db then, the whole query needs 
+to be transformed which is very tedious or sometimes may be impossible because of
+resource and time constraint. But use of ORM makes things easy as it just needs to 
+map object into targeted db through connector which helps us to get rid from changing 
+whole code.
+And also, it saves different version of project progress which makes easy back and forth 
+into different stages.
+
+
+
+
+
+
+
