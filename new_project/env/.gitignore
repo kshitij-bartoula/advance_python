@@ -1,0 +1,9 @@
+# created by virtualenv automatically
+*.pyc
+*~
+__pycache__
+
+# Env
+.env
+#ini 
+.ini
